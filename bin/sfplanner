@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+libdir = File.expand_path(File.dirname(__FILE__))
+require "#{libdir}/../lib/sfplanner"
+
+opts = Trollop::options do
+	version "sfplanner 0.0.1 (c) 2013 Herry"
+	banner <<-EOS
+Solve a planning task specified in SFP language, and print the plan (if found) in JSON format.
+
+Usage:
+       sfplanner [options] <file>
+
+where [options] are:
+EOS
+
+	opt :parallel, "Generate a parallel (partial-order) plan, instead of sequential."
+end
+
+def parse(filepath)
+	home_dir = File.expand_path(File.dirname(filepath))
+	parser = Sfp::Parser.new({:home_dir => home_dir})
+	parser.parse(File.read(filepath))
+	parser
+end
+
+filepath = ARGV[0].to_s
+
+if filepath != ''
+	planner = Sfp::Planner.new
+	puts planner.solve({:file => ARGV[0], :pretty_json => true, :parallel => opts[:parallel]})
+else
+	Trollop::help
+end
