@@ -12,8 +12,8 @@ Gem::Specification.new do |s|
 
 	s.require_paths = ['lib']
 
-	s.homepage		= 'https://github.com/herry13/sfp-planner'
-	s.rubyforge_project = 'sfp-planner'
+	s.homepage		= 'https://github.com/herry13/sfplanner'
+	s.rubyforge_project = 'sfplanner'
 
 	s.add_dependency 'sfp', '~> 0.3.0'
 end	
