@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
 	s.files			= `git ls-files`.split("\n")
 
 	s.require_paths = ['lib']
+	s.license       = 'BSD'
 
 	s.homepage		= 'https://github.com/herry13/sfplanner'
 	s.rubyforge_project = 'sfplanner'
