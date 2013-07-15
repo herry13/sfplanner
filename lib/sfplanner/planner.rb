@@ -24,8 +24,8 @@ module Sfp
 		attr_reader :parser
 
 		def initialize(params={})
-			@debug = Debug
 			@parser = Sfp::Parser.new(params)
+			@debug = Debug
 		end
 
 		# @param :string       : SFP task in string
@@ -47,6 +47,8 @@ module Sfp
 				@parser.home_dir = File.expand_path(File.dirname(params[:file]))
 				@parser.parse(File.read(params[:file]))
 			end
+
+			@debug = true if params[:debug]
 
 			if not @parser.conformant
 				return self.solve_classical_task(params)
