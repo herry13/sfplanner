@@ -1,10 +1,10 @@
-SFP Planner for Ruby
-====================
+SFP Parser and Planner for Ruby
+===============================
 - Author: Herry (herry13@gmail.com)
 - Version: 0.0.1
 - License: [BSD License](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
 
-A Ruby gem that provides a Ruby interface to a planner that generates a plan as the solution of a planning problem specified in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).
+A Ruby gem that provides a Ruby API to SFP planner that solves a planning task written in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).
 
 Click [here](https://github.com/herry13/nuri/wiki/SFP-language), for more details about SFP language.
 
@@ -25,64 +25,41 @@ Requirements
 	- antlr3
 	- json
 
-
-Supporting Platforms
---------------------
-- Linux (x86)
-- MacOS X
-
-Tested on: MacOS X 10.8, Ubuntu 12.04, and Scientific Linux 6.
+Tested on:
+- Ubuntu 12.04
+- Debian Squeeze
+- Scientific Linux 6.
+- MacOS X 10.8
 
 
-To use as a command line to solve a planning task
--------------------------------------------------
-- solve a planning task, and then print a sequential plan (if found) in JSON
+To use as a command line
+------------------------
+- solve a planning task, and then print the output in JSON
 
-		$ sfplanner <sfp-file>
-
-The planning task must be written in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).
-
-
-To generate a parallel (partial-order) plan
--------------------------------------------
-- use option **--parallel** to generate a partial order plan
-
-		$ sfplanner --parallel <sfp-file>
+		$ sfplanner <sfp-task-file>
 
 
 To use as Ruby library
 ----------------------
-- include file *sfplanner* library in your codes:
+- parse an SFP file, and then generate the plan (if found) in Hash:
 
+		# include sfplanner library
 		require 'sfplanner'
 
-- to parse an SFP file: create a Sfp::Parser object, and then pass the content of the file:
+		# solve and return the plan in Hash
+		planner.solve({:file => file_path})
 
-		# Determine the home directory of your SFP file.
-		home_dir = File.expand_path(File.dirname("my_file.sfp"))
+- parse an SFP file, and then generate the plan in JSON:
 
-		# Create Sfp::Parser object
-		parser = Sfp::Parser.new({:home_dir => "./"})
+		# include sfplanner library
+		require 'sfplanner'
 
-		# Parse the file.
-		parser.parse(File.read("my_file.sfp"))
-
-		# Get the result in Hash data structure
-		result = parser.root
-
-- to solve a planning task: create a Sfp::Planner object, and then pass the file's path:
-
-		# Create Sfp::Planner object.
-		planner = Sfp::Planner.new
-
-		# Solve a planning task written in "my_file.sfp", then print
-		# the result in JSON.
-		puts planner.solve({:file => "my_file.sfp", :json => true})
+		# solve and return the plan in JSON
+		planner.solve({:file => file_path, :json => true})
 
 
-
-Example of Planning Problem
----------------------------
+Example of Planning Task
+------------------------
 - Create file **types.sfp** to hold required schemas:
 
 		schema Service {
@@ -159,7 +136,7 @@ Example of Planning Problem
 - To generate the workflow, we invoke **sfp** command with argument
   the path of the task file:
 
-		$ sfp task.sfp
+		$ sfplanner task.sfp
 
   Which will generate a workflow in JSON
 
@@ -207,23 +184,3 @@ Example of Planning Problem
   This workflow is sequential that has 3 procedures. If you executes
   the workflow in given order, it will achieves the goal state as well
   as perserves the global constraints during the execution.
-
-- To generate and execute the plan using Bash framework, we invoke **sfp**
-  command with an option *--solve-execute* and with an argument the path of
-  the task file:
-
-		$ sfp --solve-execute task.sfp
-
-  It will generate and execute the plan by invoking the Bash scripts in
-  the current directory (or as specified in environment variable SFP_HOME)
-  in the following sequence:
-
-		./modules/b/start
-		./modules/pc/redirect "$.b"
-		./modules/a/stop
-
-- If you save the plan in a file e.g. **plan.json**, you could execute it
-  later using option *--execute*
-
-		$ sfp --execute plan.json
-

@@ -140,7 +140,7 @@ module Sfp
 		end
 
 		def solve_classical_task(params={})
-			@plan, @sas_task = self.solve_sas(@parser)
+			@plan, @sas_task = self.solve_sas(@parser, params)
 
 			return @plan if params[:sas_plan]
 
@@ -241,11 +241,14 @@ module Sfp
 			end
 		end
 
-		def solve_sas(parser)
+		def solve_sas(parser, p={})
 			return nil if parser.nil?
-
+			
 			tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
 			begin
+				parser.compile
+				p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
+
 				while File.exist?(tmp_dir)
 					tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
 				end
@@ -253,7 +256,8 @@ module Sfp
 				sas_file = tmp_dir + '/problem.sas'
 				plan_file = tmp_dir + '/out.plan'
 				File.open(sas_file, 'w') do |f|
-					f.write(parser.to_sas)
+					#f.write(parser.to_sas)
+					f.write(parser.sas)
 					f.flush
 				end
 
