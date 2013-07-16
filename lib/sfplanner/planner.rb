@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = false
+		Debug = true
 
 		class Config
 			# The timeout for the solver in seconds (default 600s/5mins)
@@ -243,6 +243,16 @@ module Sfp
 			end
 		end
 
+		def plan_preprocessing(plan)
+			return plan if plan[0,2] != '1:'
+			plan1 = ''
+			plan.each_line { |line|
+				_, line = line.split(':', 2)
+				plan1 += "#{line.strip}\n"
+			}
+			plan1.strip
+		end
+
 		def solve_sas(parser, p={})
 			return nil if parser.nil?
 			
@@ -271,6 +281,7 @@ module Sfp
 					Kernel.system(command)
 				end
 				plan = (File.exist?(plan_file) ? File.read(plan_file) : nil)
+				plan = plan_preprocessing(plan)
 
 				if plan != nil
 					plan = extract_sas_plan(plan, parser)
@@ -374,7 +385,7 @@ module Sfp
 			end
 
 			if not command.nil? and (os == 'linux' or os == 'macos' or os == 'darwin')
-				command = "#{command} 1> /dev/null 2>/dev/null"
+				command = "#{command} 1>>search.log 2>>search.log" #1> /dev/null 2>/dev/null"
 			end
 
 			command
@@ -393,14 +404,14 @@ module Sfp
 
 			def solve
 				# 1) solve with FF
-				planner1 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff')
+				planner1 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
 				Kernel.system(planner1)
 				# 1b) if not found, try CEA
 				if not File.exist?(@plan_file)
-					planner2 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea')
+					planner2 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff')
 					Kernel.system(planner2)
 				end
-				# 1c) if not found, try CG
+				# 1c) if not found, try CG
 				if not File.exists?(@plan_file)
 					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cg')
 					Kernel.system(planner3)
@@ -416,9 +427,11 @@ module Sfp
 				lmcut = Sfp::Planner.getcommand(@dir, new_sas, new_plan, 'lmcut')
 				Kernel.system(lmcut)
 
-				# LMCUT cannot find the sub-optimized plan
-				File.delete(@plan_file)
-				File.rename(new_plan, @plan_file) if File.exist?(new_plan)
+				# 4) LMCUT cannot find the sub-optimized plan
+				if File.exist?(new_plan)
+					File.delete(@plan_file)
+					File.rename(new_plan, @plan_file)
+				end
 
 				true
 			end
