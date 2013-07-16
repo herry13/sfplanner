@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
 	s.name			= 'sfplanner'
-	s.version		= '0.0.1'
-	s.date			= '2013-07-03'
+	s.version		= '0.0.2'
+	s.date			= '2013-07-15'
 	s.summary		= 'SFPlanner'
 	s.description	= 'A Ruby gem that provides a Ruby API and a script to the SFP planner. This planner can automatically generate a plan that solves a planning problem written in SFP language.'
 	s.authors		= ['Herry']
@@ -16,5 +16,5 @@ Gem::Specification.new do |s|
 	s.homepage		= 'https://github.com/herry13/sfplanner'
 	s.rubyforge_project = 'sfplanner'
 
-	s.add_dependency 'sfp', '~> 0.3.0'
+	s.add_dependency 'sfp', '~> 0.3.5'
 end	
