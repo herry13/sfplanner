@@ -1,11 +1,11 @@
 module Sfp
 	class Planner
-		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = true
+		Heuristic = 'ff' #'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
+		Debug = false
 
 		class Config
-			# The timeout for the solver in seconds (default 600s/5mins)
-			@@timeout = 600
+			# The timeout for the solver in seconds (default 60s/1mins)
+			@@timeout = 60
 
 			def self.timeout; @@timeout; end
 
@@ -50,6 +50,8 @@ module Sfp
 
 			@debug = true if params[:debug]
 
+			save_sfp_task if @debug
+
 			if not @parser.conformant
 				return self.solve_classical_task(params)
 			else
@@ -81,6 +83,12 @@ module Sfp
 		end
 
 		protected
+		def save_sfp_task
+			sfp_task = Sfp::Helper.deep_clone(@parser.root)
+			sfp_task.accept(Sfp::Visitor::ParentEliminator.new)
+			File.open('/tmp/planning.sfp', 'w') { |f| f.write(JSON.generate(sfp_task)) }
+		end
+
 		def solve_conformant_task(params={})
 			# TODO
 			# 1) generate all possible initial states
@@ -244,7 +252,7 @@ module Sfp
 		end
 
 		def plan_preprocessing(plan)
-			return plan if plan[0,2] != '1:'
+			return plan if plan.nil? or plan[0,2] != '1:'
 			plan1 = ''
 			plan.each_line { |line|
 				_, line = line.split(':', 2)
@@ -361,10 +369,10 @@ module Sfp
 		# - within given working directory "dir"
 		# - problem in SAS+ format, available in"sas_file"
 		# - solution will be saved in "plan_file"
-		def self.getcommand(dir, sas_file, plan_file, heuristic='ff', debug=false)
+		def self.getcommand(dir, sas_file, plan_file, heuristic='ff', debug=false, timeout=nil)
 			planner = Sfp::Planner.path
 			params = Sfp::Planner.parameters(heuristic)
-			timeout = Sfp::Planner::Config.timeout
+			timeout = Sfp::Planner::Config.timeout if timeout.nil?
 
 			os = `uname -s`.downcase.strip
 			command = case os
@@ -374,18 +382,18 @@ module Sfp
 					     "#{planner}/preprocess < #{sas_file} 2>/dev/null 1>/dev/null; " +
 					     "if [ -f 'output' ]; then " +
 					     "timeout #{timeout} nice #{planner}/downward #{params} " +
-					     "--plan-file #{plan_file} < output; fi"
+					     "--plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
 				when 'macos', 'darwin'
 					then "cd #{dir}; " +
 					     "ulimit -Sv #{Sfp::Planner::Config.max_memory}; " +
-					     "#{planner}/preprocess < #{sas_file} 1> /dev/null; " +
+					     "#{planner}/preprocess < #{sas_file} 1>/dev/null 2>/dev/null ; " +
 					     "#{planner}/downward #{params} " +
-					     "--plan-file #{plan_file} < output 1> /dev/null;"
+					     "--plan-file #{plan_file} < output  1>>search.log 2>>search.log;"
 				else nil
 			end
 
 			if not command.nil? and (os == 'linux' or os == 'macos' or os == 'darwin')
-				command = "#{command} 1>>search.log 2>>search.log" #1> /dev/null 2>/dev/null"
+				command = "#{command}" #1> /dev/null 2>/dev/null"
 			end
 
 			command
@@ -403,6 +411,8 @@ module Sfp
 			end
 
 			def solve
+				use_admissible = false
+
 				# 1) solve with FF
 				planner1 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
 				Kernel.system(planner1)
@@ -415,9 +425,23 @@ module Sfp
 				if not File.exists?(@plan_file)
 					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cg')
 					Kernel.system(planner3)
+					#return false if not File.exist?(@plan_file)
+				end
+
+				# final try: using an admissible heuristic
+				if not File.exist?(@plan_file)
+					use_admissible = true
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'lmcut', false, '20m')
+					Kernel.system(planner)
 					return false if not File.exist?(@plan_file)
 				end
 
+				optimise_plan if not use_admissible
+
+				true
+			end
+
+			def optimise_plan
 				# 2) remove unselected operators
 				new_sas = @sas_file + '.2'
 				new_plan = @plan_file + '.2'
@@ -432,8 +456,6 @@ module Sfp
 					File.delete(@plan_file)
 					File.rename(new_plan, @plan_file)
 				end
-
-				true
 			end
 
 			def filter_operators(sas, plan, new_sas)
