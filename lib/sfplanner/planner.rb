@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'ff' #'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = false
+		Debug = true
 
 		class Config
 			# The timeout for the solver in seconds (default 60s/1mins)
@@ -266,8 +266,9 @@ module Sfp
 			
 			tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
 			begin
-				parser.compile
+				parser.compile_step_1
 				p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
+				parser.compile_step_2
 
 				while File.exist?(tmp_dir)
 					tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
