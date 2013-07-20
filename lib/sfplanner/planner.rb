@@ -1,6 +1,6 @@
 module Sfp
 	class Planner
-		Heuristic = 'ff' #'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
+		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
 		Debug = true
 
 		class Config
@@ -426,17 +426,16 @@ module Sfp
 				if not File.exists?(@plan_file)
 					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cg')
 					Kernel.system(planner3)
-					#return false if not File.exist?(@plan_file)
 				end
 
-				# final try: using an admissible heuristic
-				if not File.exist?(@plan_file)
-					use_admissible = true
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'lmcut', false, '20m')
-					Kernel.system(planner)
-					return false if not File.exist?(@plan_file)
-				end
+				# final try: using an admissible heuristic
+				#if not File.exist?(@plan_file)
+				#	use_admissible = true
+				#	planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'lmcut', false, '20m')
+				#	Kernel.system(planner)
+				#end
 
+				return false if not File.exist?(@plan_file)
 				optimise_plan if not use_admissible
 
 				true
