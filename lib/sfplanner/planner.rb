@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = true
+		Debug = false
 
 		class Config
 			# The timeout for the solver in seconds (default 60s/1mins)
