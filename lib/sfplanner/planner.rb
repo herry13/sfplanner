@@ -1,6 +1,6 @@
 module Sfp
 	class Planner
-		Heuristic = 'mad' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
+		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
 		Debug = true
 
 		class Config
@@ -362,6 +362,24 @@ module Sfp
                     lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=2),
                     lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=1)],
                     repeat_last=true,continue_on_fail=true)"'
+				when 'autotune' then ' \
+--heuristic "hCea=cea(cost_type=2)" \
+--heuristic "hCg=cg(cost_type=1)" \
+--heuristic "hGoalCount=goalcount(cost_type=2)" \
+--heuristic "hFF=ff(cost_type=0)" \
+--heuristic "hMad=mad()" \
+--search "lazy(alt([single(sum([weight(g(), 2),weight(hFF, 3)])),
+                    single(sum([weight(g(), 2),weight(hFF, 3)]),pref_only=true),
+                    single(sum([weight(g(), 2),weight(hCg, 3)])),
+                    single(sum([weight(g(), 2),weight(hCg, 3)]),pref_only=true),
+                    single(sum([weight(g(), 2),weight(hCea, 3)])),
+                    single(sum([weight(g(), 2),weight(hCea, 3)]),pref_only=true),
+                    single(sum([weight(g(), 2),weight(hGoalCount, 3)])),
+                    single(sum([weight(g(), 2),weight(hGoalCount, 3)]),pref_only=true),
+                    single(sum([weight(g(), 2),weight(hMad, 3)])),
+                    single(sum([weight(g(), 2),weight(hMad, 3)]),pref_only=true)],
+                   boost=200),
+              preferred=[hCea,hGoalCount],reopen_closed=false,cost_type=1)"'
 				else '--search "lazy_greedy(ff(cost_type=0))"'
 			end
 		end
@@ -414,18 +432,23 @@ module Sfp
 			def solve
 				use_admissible = false
 
-				# 1) solve with FF
-				planner1 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
-				Kernel.system(planner1)
-				# 1b) if not found, try CEA
+				# 1a) solve with autotune (see fd-autotune-2)
+				planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune')
+				Kernel.system(planner)
+
+				# 1b) if not found, try mad
 				if not File.exist?(@plan_file)
-					planner2 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff')
-					Kernel.system(planner2)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
+					Kernel.system(planner)
 				end
-				# 1c) if not found, try CG
+#				if not File.exist?(@plan_file)
+#					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff')
+#					Kernel.system(planner)
+#				end
+				# 1c) if not found, try CEA
 				if not File.exists?(@plan_file)
-					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea')
-					Kernel.system(planner3)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea')
+					Kernel.system(planner)
 				end
 
 				# final try: using an admissible heuristic
