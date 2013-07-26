@@ -1,6 +1,6 @@
 module Sfp
 	class Planner
-		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
+		Heuristic = 'mad' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
 		Debug = true
 
 		class Config
@@ -86,7 +86,7 @@ module Sfp
 		def save_sfp_task
 			sfp_task = Sfp::Helper.deep_clone(@parser.root)
 			sfp_task.accept(Sfp::Visitor::ParentEliminator.new)
-			File.open('/tmp/planning.sfp', 'w') { |f| f.write(JSON.generate(sfp_task)) }
+			File.open('/tmp/planning.json', 'w') { |f| f.write(JSON.pretty_generate(sfp_task)) }
 		end
 
 		def solve_conformant_task(params={})
@@ -424,7 +424,7 @@ module Sfp
 				end
 				# 1c) if not found, try CG
 				if not File.exists?(@plan_file)
-					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cg')
+					planner3 = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea')
 					Kernel.system(planner3)
 				end
 
