@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = true
+		Debug = false
 
 		class Config
 			# The timeout for the solver in seconds (default 60s/1mins)
@@ -406,14 +406,15 @@ module Sfp
 					then "cd #{dir}; " +
 					     "ulimit -Sv #{Sfp::Planner::Config.max_memory}; " +
 					     "#{planner}/preprocess < #{sas_file} 1>/dev/null 2>/dev/null ; " +
-					     "#{planner}/downward #{params} " +
-					     "--plan-file #{plan_file} < output  1>>search.log 2>>search.log;"
+					     "if [ -f 'output' ]; then " +
+						 "nice #{planner}/downward #{params} " +
+					     "--plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
 				else nil
 			end
 
-			if not command.nil? and (os == 'linux' or os == 'macos' or os == 'darwin')
-				command = "#{command}" #1> /dev/null 2>/dev/null"
-			end
+			#if not command.nil? and (os == 'linux' or os == 'macos' or os == 'darwin')
+			#	command = "#{command}" #1> /dev/null 2>/dev/null"
+			#end
 
 			command
 		end
