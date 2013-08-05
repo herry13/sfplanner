@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = false
+		Debug = true
 
 		class Config
 			# The timeout for the solver in seconds (default 60s/1mins)
@@ -44,8 +44,12 @@ module Sfp
 				@parser.root = params[:sfp]
 			elsif params[:file].is_a?(String)
 				raise Exception, "File not found: #{params[:file]}" if not File.exist?(params[:file])
-				@parser.home_dir = File.expand_path(File.dirname(params[:file]))
-				@parser.parse(File.read(params[:file]))
+				if params[:input_json]
+					@parser.root = json_to_sfp(JSON[File.read(params[:file])])
+				else
+					@parser.home_dir = File.expand_path(File.dirname(params[:file]))
+					@parser.parse(File.read(params[:file]))
+				end
 			end
 
 			@debug = true if params[:debug]
@@ -83,6 +87,16 @@ module Sfp
 		end
 
 		protected
+		def json_to_sfp(json)
+			json.accept(Sfp::Visitor::SfpGenerator.new(json))
+			json.each do |key,val|
+				next if key[0,1] == '_'
+				if val.is_a?(Hash) and val['_context'] == 'state'
+					#val.each { |k,v| v.delete('_parent') if k[0,1] != '_' and v.is_a?(Hash) and v.has_key?('_parent') }
+				end
+			end
+		end
+
 		def save_sfp_task
 			sfp_task = Sfp::Helper.deep_clone(@parser.root)
 			sfp_task.accept(Sfp::Visitor::ParentEliminator.new)
