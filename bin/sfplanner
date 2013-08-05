@@ -30,10 +30,15 @@ filepath = ARGV[0].to_s
 
 if filepath != ''
 	planner = Sfp::Planner.new
+	options = {:file => ARGV[0],
+	           :json => !opts[:pretty],
+	           :pretty_json => opts[:pretty],
+	           :parallel => opts[:parallel]}
 	if opts[:json_input]
-		puts 'Option "--json-input" is not supported yet.'
+		options[:input_json] = true
+		puts planner.solve(options)
 	else
-		puts planner.solve({:file => ARGV[0], :pretty_json => opts[:pretty], :parallel => opts[:parallel]})
+		puts planner.solve(options)
 	end
 else
 	Trollop::help
