@@ -361,27 +361,16 @@ module Sfp
 				when 'cg' then '--search "lazy_greedy(cg(cost_type=2))"'
 				when 'cea' then '--search "lazy_greedy(cea(cost_type=2))"'
 				when 'mad' then '--search "lazy_greedy(mad())"'
-				when 'lama2011' then ' \
-                --heuristic "hlm1,hff1=lm_ff_syn(lm_rhw(
-                    reasonable_orders=true,lm_cost_type=1,cost_type=1))" \
-                --heuristic "hlm2,hff2=lm_ff_syn(lm_rhw(
-                    reasonable_orders=true,lm_cost_type=2,cost_type=2))" \
-                --search "iterated([
-                    lazy_greedy([hff1,hlm1],preferred=[hff1,hlm1],
-                                cost_type=1,reopen_closed=false),
-                    lazy_greedy([hff2,hlm2],preferred=[hff2,hlm2],
-                                reopen_closed=false),
-                    lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=5),
-                    lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=3),
-                    lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=2),
-                    lazy_wastar([hff2,hlm2],preferred=[hff2,hlm2],w=1)],
-                    repeat_last=true,continue_on_fail=true)"'
-				when 'autotune' then ' \
+				when 'ff2' then ' --heuristic "hFF=ff(cost_type=1)" \
+--search "lazy(alt([single(sum([g(),weight(hFF, 10)])),
+                    single(sum([g(),weight(hFF, 10)]),pref_only=true)],
+                    boost=2000),
+               preferred=hFF,reopen_closed=false,cost_type=1)"'
+				when 'autotune22' then ' \
 --heuristic "hCea=cea(cost_type=2)" \
 --heuristic "hCg=cg(cost_type=1)" \
 --heuristic "hGoalCount=goalcount(cost_type=2)" \
 --heuristic "hFF=ff(cost_type=0)" \
---heuristic "hMad=mad()" \
 --search "lazy(alt([single(sum([weight(g(), 2),weight(hFF, 3)])),
                     single(sum([weight(g(), 2),weight(hFF, 3)]),pref_only=true),
                     single(sum([weight(g(), 2),weight(hCg, 3)])),
@@ -389,11 +378,26 @@ module Sfp
                     single(sum([weight(g(), 2),weight(hCea, 3)])),
                     single(sum([weight(g(), 2),weight(hCea, 3)]),pref_only=true),
                     single(sum([weight(g(), 2),weight(hGoalCount, 3)])),
-                    single(sum([weight(g(), 2),weight(hGoalCount, 3)]),pref_only=true),
-                    single(sum([weight(g(), 2),weight(hMad, 3)])),
-                    single(sum([weight(g(), 2),weight(hMad, 3)]),pref_only=true)],
+                    single(sum([weight(g(), 2),weight(hGoalCount, 3)]),pref_only=true)],
                    boost=200),
               preferred=[hCea,hGoalCount],reopen_closed=false,cost_type=1)"'
+				when 'autotune12' then ' \
+            --heuristic "hFF=ff(cost_type=1)" \
+            --heuristic "hCea=cea(cost_type=0)" \
+            --heuristic "hCg=cg(cost_type=2)" \
+            --heuristic "hGoalCount=goalcount(cost_type=0)" \
+            --heuristic "hAdd=add(cost_type=0)" \
+      --search "lazy(alt([single(sum([g(),weight(hAdd, 7)])),
+                          single(sum([g(),weight(hAdd, 7)]),pref_only=true),
+                          single(sum([g(),weight(hCg, 7)])),
+                          single(sum([g(),weight(hCg, 7)]),pref_only=true),
+                          single(sum([g(),weight(hCea, 7)])),
+                          single(sum([g(),weight(hCea, 7)]),pref_only=true),
+                          single(sum([g(),weight(hGoalCount, 7)])),
+                          single(sum([g(),weight(hGoalCount, 7)]),pref_only=true)],
+                          boost=1000),
+                     preferred=[hCea,hGoalCount],
+                     reopen_closed=false,cost_type=1)"'
 				else '--search "lazy_greedy(ff(cost_type=0))"'
 			end
 		end
@@ -447,22 +451,24 @@ module Sfp
 			def solve
 				use_admissible = false
 
-				# 1a) solve with autotune (see fd-autotune-2)
-				planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune')
-				Kernel.system(planner)
+				# 1a) solve with ff2 (FF with boost: see fd-autotune-1)
+				#planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff2')
+				#Kernel.system(planner)
 
-				# 1b) if not found, try mad
 				if not File.exist?(@plan_file)
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
+ 					#autotune12 (see fd-autotune-1)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune12')
+					Kernel.system(planner)
+					use_admissible = true
+				end
+				if not File.exist?(@plan_file)
+ 					#autotune22 (see fd-autotune-2)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune22')
 					Kernel.system(planner)
 				end
-#				if not File.exist?(@plan_file)
-#					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff')
-#					Kernel.system(planner)
-#				end
-				# 1c) if not found, try CEA
 				if not File.exists?(@plan_file)
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea')
+					# mad
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
 					Kernel.system(planner)
 				end
 
@@ -503,6 +509,7 @@ module Sfp
 					line.strip!
 					line = line[1, line.length-2]
 					selected << line.split(' ', 2)[0]
+					#'$.' + line[1, line.length-2].split(' ', 2)[0].split('$.')[1]
 				end
 
 				# remove unselected operators
