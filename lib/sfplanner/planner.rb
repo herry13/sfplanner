@@ -2,6 +2,7 @@ module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
 		Debug = true
+		TranslatorBenchmarkFile = 'sas_translator.benchmarks'
 
 		class Config
 			# The timeout for the solver in seconds (default 60s/1mins)
@@ -280,14 +281,21 @@ module Sfp
 			
 			tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
 			begin
-				parser.compile_step_1
-				p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
-				parser.compile_step_2
+				compile_time = Benchmark.measure do
+					parser.compile_step_1
+					p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
+					parser.compile_step_2
+				end
 
 				while File.exist?(tmp_dir)
 					tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
 				end
 				Dir.mkdir(tmp_dir)
+
+				benchmarks = parser.benchmarks
+				benchmarks['compile time'] = compile_time
+				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
+
 				sas_file = tmp_dir + '/problem.sas'
 				plan_file = tmp_dir + '/out.plan'
 				File.open(sas_file, 'w') do |f|
@@ -361,6 +369,8 @@ module Sfp
 				when 'cg' then '--search "lazy_greedy(cg(cost_type=2))"'
 				when 'cea' then '--search "lazy_greedy(cea(cost_type=2))"'
 				when 'mad' then '--search "lazy_greedy(mad())"'
+				when 'cea2' then ' --heuristic "hCea=cea(cost_type=2)" \
+            --search "ehc(hCea, preferred=hCea,preferred_usage=0,cost_type=0)"'
 				when 'ff2' then ' --heuristic "hFF=ff(cost_type=1)" \
 --search "lazy(alt([single(sum([g(),weight(hFF, 10)])),
                     single(sum([g(),weight(hFF, 10)]),pref_only=true)],
@@ -449,17 +459,12 @@ module Sfp
 			end
 
 			def solve
-				use_admissible = false
-
-				# 1a) solve with ff2 (FF with boost: see fd-autotune-1)
-				#planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff2')
-				#Kernel.system(planner)
+				optimize = false
 
 				if not File.exist?(@plan_file)
  					#autotune12 (see fd-autotune-1)
 					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune12')
 					Kernel.system(planner)
-					use_admissible = true
 				end
 				if not File.exist?(@plan_file)
  					#autotune22 (see fd-autotune-2)
@@ -467,8 +472,13 @@ module Sfp
 					Kernel.system(planner)
 				end
 				if not File.exists?(@plan_file)
-					# mad
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'mad')
+					# solve with cea2 (EHC+CEA: see fd-autotune-2)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'cea2')
+					Kernel.system(planner)
+				end
+				if not File.exists?(@plan_file)
+					# solve with ff2 (FF with boost: see fd-autotune-1)
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'ff2')
 					Kernel.system(planner)
 				end
 
@@ -480,12 +490,12 @@ module Sfp
 				#end
 
 				return false if not File.exist?(@plan_file)
-				optimise_plan if not use_admissible
+				optimize_plan if optimize
 
 				true
 			end
 
-			def optimise_plan
+			def optimize_plan
 				# 2) remove unselected operators
 				new_sas = @sas_file + '.2'
 				new_plan = @plan_file + '.2'
