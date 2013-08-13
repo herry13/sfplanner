@@ -1,7 +1,7 @@
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = true
+		Debug = false
 		TranslatorBenchmarkFile = 'sas_translator.benchmarks'
 
 		class Config
@@ -459,7 +459,7 @@ module Sfp
 			end
 
 			def solve
-				optimize = false
+				optimize = true
 
 				if not File.exist?(@plan_file)
  					#autotune12 (see fd-autotune-1)
