@@ -1,7 +1,9 @@
+require 'fileutils'
+
 module Sfp
 	class Planner
 		Heuristic = 'mixed' # lmcut, cg, cea, ff, mixed ([cg|cea|ff]=>lmcut)
-		Debug = false
+		Debug = (ENV['SFPLANNER_DEBUG'] ? true : false)
 		TranslatorBenchmarkFile = 'sas_translator.benchmarks'
 
 		class Config
@@ -452,15 +454,20 @@ module Sfp
 		# 2) remove actions which are not selected by previous step
 		# 3) solve the problem with LMCUT using A*-search to obtain a sub-optimal plan
 		class MixedHeuristic
-			def initialize(dir, sas_file, plan_file)
+			attr_reader :heuristics_order
+
+			def initialize(dir, sas_file, plan_file, continue=false, optimize=true)
 				@dir = dir
 				@sas_file = sas_file
 				@plan_file = plan_file
+				@heuristics_order = ['autotune12', 'autotune22', 'ff2', 'cea2']
+				@heuristics_order = ENV['SFPLANNER_MIXED_HEURISTICS'].split(',') if ENV['SFPLANNER_MIXED_HEURISTICS']
+				@continue = continue
+				@continue = true if ENV['SFPLANNER_MIXED_CONTINUE']
+				@optimize = optimize
 			end
 
-			def solve
-				optimize = true
-
+			def solve2
 				if not File.exist?(@plan_file)
  					#autotune12 (see fd-autotune-1)
 					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune12')
@@ -490,7 +497,36 @@ module Sfp
 				#end
 
 				return false if not File.exist?(@plan_file)
-				optimize_plan if optimize
+				optimize_plan if @optimize
+
+				true
+			end
+
+			def solve
+				total = 0
+				@heuristics_order.each do |heuristic|
+					command = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, heuristic)
+					Kernel.system(command)
+					if File.exist?(@plan_file)
+						total += 1
+						File.rename(@plan_file, "#{@plan_file}.sol.#{total}")
+						break if not @continue
+					end
+				end
+
+				return false if total <= 0
+
+				best_length = 1000000
+				1.upto(total) do |i|
+					filepath = "#{@plan_file}.sol.#{i}"
+					plan_length = File.read(filepath).split("\n").length
+					if plan_length < best_length
+						File.delete(@plan_file) if File.exist?(@plan_file)
+						FileUtils.copy(filepath, @plan_file)
+					end
+				end
+
+				optimize_plan if @optimize
 
 				true
 			end

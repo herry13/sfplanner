@@ -2,7 +2,7 @@ SFP Planner for Ruby
 ====================
 - Author: Herry (herry13@gmail.com)
 - Version: 0.1.1
-- License: [BSD License](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
+- License: [BSD](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
 
 A Ruby gem that provides a Ruby API to SFP planner that solves a planning task written in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).
 
@@ -184,3 +184,21 @@ Example of Planning Task
   This workflow is sequential that has 3 procedures. If you executes
   the workflow in given order, it will achieves the goal state as well
   as perserves the global constraints during the execution.
+
+
+Planner Options
+---------------
+You could set particular environment variable to change the planner settings:
+- to activate debug-mode
+
+	SFPLANNER_DEBUG=1
+
+- to use multiple heuristic on finding the solution, and then pick the best result
+
+	SFPLANNER_MIXED_CONTINUE=1
+
+- to set heuristics which are used in searching
+
+	SFPLANNER_MIXED_HEURISTICS=ff2,cea2
+
+
