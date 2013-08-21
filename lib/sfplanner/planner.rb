@@ -188,14 +188,17 @@ module Sfp
 		def to_sequential_bsig
 			bsig = self.bsig_template
 			return bsig if @plan.length <= 0
+
 			plan = self.get_sequential_plan
 			bsig['operators'] = workflow = plan['workflow']
+
 			(workflow.length-1).downto(1) do |i|
 				op = workflow[i]
 				prev_op = workflow[i-1]
 				prev_op['effect'].each { |k,v| op['condition'][k] = v }
 			end
 			bsig['goal'], _ = self.bsig_goal_operator(workflow)
+
 			return bsig
 		end
 
