@@ -39,6 +39,7 @@ module Sfp
 		#                        if false or nil then return a sequential plan
 		# @param :json         : if true then return the plan in JSON
 		# @param :pretty_json  : if true then return in pretty JSON
+		# @param :bsig         : if true then return the solution plan as a BSig model
 		#
 		def solve(params={})
 			if params[:string].is_a?(String)
@@ -75,6 +76,7 @@ module Sfp
 			raise Exception, "Conformant task is not supported yet" if @parser.conformant
 
 			bsig = (params[:parallel] ? self.to_parallel_bsig : self.to_sequential_bsig)
+
 			return (params[:json] ? JSON.generate(bsig) :
 			        (params[:pretty_json] ? JSON.pretty_generate(bsig) : bsig))
 		end
@@ -107,7 +109,8 @@ module Sfp
 		end
 
 		def solve_conformant_task(params={})
-			# TODO
+			raise Exception, "Conformant task is not supported yet" if params[:bsig]
+
 			# 1) generate all possible initial states
 			#    remove states that do not satisfy the global constraint
 			def get_possible_partial_initial_states(init)
@@ -171,6 +174,8 @@ module Sfp
 
 			return @plan if params[:sas_plan]
 
+			return to_bsig(params) if params[:bsig]
+
 			plan = (params[:parallel] ? self.get_parallel_plan : self.get_sequential_plan)
 			return (params[:json] ? JSON.generate(plan) :
 			        (params[:pretty_json] ? JSON.pretty_generate(plan) : plan))
@@ -195,25 +200,45 @@ module Sfp
 		end
 
 		def to_parallel_bsig
+			def set_priority_index(operator, operators)
+				pi = 1 
+				operator['successors'].each { |i| 
+					set_priority_index(operators[i], operators)
+					pi = operators[i]['pi'] + 1 if pi <= operators[i]['pi']
+				}   
+				operator['pi'] = pi
+			end 
+
 			return nil if @plan.nil?
+
 			bsig = self.bsig_template
 			return bsig if @plan.length <= 0
+
+			# generate parallel plan
 			plan = self.get_parallel_plan
-			# foreach operator's predecessors, add its effects to operator's conditions
-			bsig['operators'] = workflow = plan['workflow']
-			workflow.each do |op|
+
+			# set BSig operators
+			bsig['operators'] = operators = plan['workflow']
+
+			# set priority index
+			operators.each { |op| set_priority_index(op, operators) if op['predecessors'].length <= 0 }
+
+			# foreach operator
+			# - for each operator's predecessors, add its effects to operator's conditions
+			# - remove unnecessary data
+			operators.each do |op|
 				op['predecessors'].each do |pred|
-					pred_op = workflow[pred]
+					pred_op = operators[pred]
 					pred_op['effect'].each { |k,v| op['condition'][k] = v }
 				end
-			end
-			# remove unnecessary information
-			workflow.each do |op|
 				op.delete('id')
 				op.delete('predecessors')
 				op.delete('successors')
 			end
-			bsig['goal'], bsig['goal_operator'] = self.bsig_goal_operator(workflow)
+
+			# set goals
+			bsig['goal'], bsig['goal_operator'] = self.bsig_goal_operator(operators)
+
 			return bsig
 		end
 

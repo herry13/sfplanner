@@ -99,7 +99,6 @@ module Nuri
 					raise Exception, 'Cannot find operator: ' + op_name if operator.nil?
 					op_sfw = operator.to_sfw
 					op_sfw['id'] = i
-					op_sfw['distance'] = distance
 					op_sfw['successors'] = []
 					op_sfw['predecessors'] = []
 					sfw << op_sfw
@@ -116,6 +115,7 @@ module Nuri
 						sfw[i]['predecessors'] << j
 					end
 				end
+
 				return sfw, init, sfw.length
 			end
 
