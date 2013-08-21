@@ -255,7 +255,13 @@ module Sfp
 
 		def get_parallel_plan
 			json = {'type'=>'parallel', 'workflow'=>nil, 'init'=>nil, 'version'=>'1', 'total'=>0}
-			return json if @plan == nil
+			if @plan.nil?
+				return json
+			elsif @plan.length <= 0
+				json['workflow'] = []
+				return json
+			end
+			
 			json['workflow'], json['init'], json['total'] = @sas_task.get_partial_order_workflow(@parser)
 			return json
 		end
