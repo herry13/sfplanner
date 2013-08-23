@@ -34,6 +34,7 @@ module Sfp
 		# @param :string       : SFP task in string
 		# @param :sfp          : SFP task in Hash data structure
 		# @param :file         : SFP task in file with specified path
+		# @param :json_input   : SFP task in JSON format
 		# @param :sas_plan     : if true then return a raw SAS plan
 		# @param :parallel     : if true then return a parallel (partial-order) plan,
 		#                        if false or nil then return a sequential plan
@@ -48,7 +49,7 @@ module Sfp
 				@parser.root = params[:sfp]
 			elsif params[:file].is_a?(String)
 				raise Exception, "File not found: #{params[:file]}" if not File.exist?(params[:file])
-				if params[:input_json]
+				if params[:json_input]
 					@parser.root = json_to_sfp(JSON[File.read(params[:file])])
 				else
 					@parser.home_dir = File.expand_path(File.dirname(params[:file]))
@@ -92,6 +93,14 @@ module Sfp
 		end
 
 		protected
+		def to_dot(plan)
+			if plan['type'] == 'parallel'
+				Sfp::GraphHelper.partial2dot(self.get_parallel_plan)
+			else
+				Sfp::GraphHelper.sequential2dot(self.get_sequential_plan)
+			end
+		end
+
 		def json_to_sfp(json)
 			json.accept(Sfp::Visitor::SfpGenerator.new(json))
 			json.each do |key,val|
@@ -177,8 +186,16 @@ module Sfp
 			return to_bsig(params) if params[:bsig]
 
 			plan = (params[:parallel] ? self.get_parallel_plan : self.get_sequential_plan)
-			return (params[:json] ? JSON.generate(plan) :
-			        (params[:pretty_json] ? JSON.pretty_generate(plan) : plan))
+
+			if params[:dot]
+				to_dot(plan)
+			elsif params[:json]
+				JSON.generate(plan)
+			elsif params[:pretty_json]
+				JSON.pretty_generate(plan)
+			else
+				plan
+			end
 		end
 
 		def bsig_template
