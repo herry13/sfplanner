@@ -1,5 +1,5 @@
-SFP Planner for Ruby
-====================
+SFPlanner
+=========
 - Author: Herry (herry13@gmail.com)
 - [Version](https://github.com/herry13/sfplanner/blob/master/VERSION)
 - License: [BSD](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
