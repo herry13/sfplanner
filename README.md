@@ -4,6 +4,8 @@ SFP Planner for Ruby
 - [Version](https://github.com/herry13/sfplanner/blob/master/VERSION)
 - License: [BSD](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
 
+[![Gem Version](https://badge.fury.io/rb/sfplanner.png)](http://badge.fury.io/rb/sfplanner)
+
 A Ruby gem that provides a Ruby API to SFP planner that solves a planning task written in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).
 
 Click [here](https://github.com/herry13/nuri/wiki/SFP-language), for more details about SFP language.
