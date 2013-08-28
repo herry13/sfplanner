@@ -182,7 +182,7 @@ module Sfp
 		end
 
 		def bsig_template
-			return {'version' => 1, 'operators' => [], 'id' => Time.now.getutc.to_i, 'goal' => []}
+			return {'version' => 1, 'operators' => [], 'id' => Time.now.getutc.to_i, 'goal' => {}, 'goal_operator' => {}}
 		end
 
 		def to_sequential_bsig
