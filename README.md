@@ -22,6 +22,7 @@ To install
 Requirements
 ------------
 - Ruby (>= 1.8.7)
+- Graphviz
 - Rubygems
 	- sfp (>= 0.3.0)
 
