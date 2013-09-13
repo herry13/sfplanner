@@ -53,7 +53,7 @@ if ARGV[0]
 			opts[:output] = src_file[0, src_file.length-1-parts[parts.length-1].length] if parts.length >= 2
 			opts[:output] += '.png'
 		end
-		if !Sfp::GraphHelper.dot2image(result, opts[:output])
+		if !Sfp::Graph.dot2image(result, opts[:output])
 			$stderr.puts "Cannot generate the image graph!"
 		end
 	end

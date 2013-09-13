@@ -1,4 +1,4 @@
-module Sfp::GraphHelper
+module Sfp::Graph
 	ActionColor = 'white'
 	ActionLabelWithParameters = false
 
