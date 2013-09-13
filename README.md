@@ -13,6 +13,13 @@ Click [here](https://github.com/herry13/nuri/wiki/SFP-language), for more detail
 This is a spin-out project from [Nuri](https://github.com/herry13/nuri).
 
 
+Features
+--------
+- Automatically generating a sequential or partial-order (parallel) plan.
+- Use JSON as the standard format of the plan.
+- Generate an image file that illustrates the graph of the plan.
+
+
 To install
 ----------
 
