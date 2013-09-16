@@ -15,9 +15,11 @@ Usage:
 where [options] are:
 EOS
 
-	opt :parallel, "Generate a parallel (partial-order) plan, instead of sequential."
-	opt :json_input, "Input is in JSON format"
-	opt :pretty, "Print the plan in pretty JSON format"
+	opt :parallel, "Generate a parallel (partial-order) plan, instead of sequential.", :short => '-l'
+	opt :json_input, "Input is in JSON format", :short => '-j'
+	opt :pretty_json, "Print the plan in pretty JSON format", :short => '-r'
+	opt :image, "Generate a graph image (PNG) of the plan"
+	opt :output, "Output file path", :default => ''
 end
 
 def parse(filepath)
@@ -27,20 +29,35 @@ def parse(filepath)
 	parser
 end
 
-filepath = ARGV[0].to_s
-
-if filepath != ''
+if ARGV[0]
 	planner = Sfp::Planner.new
-	options = {:file => ARGV[0],
-	           :json => !opts[:pretty],
-	           :pretty_json => opts[:pretty],
-	           :parallel => opts[:parallel]}
-	if opts[:json_input]
-		options[:input_json] = true
-		puts planner.solve(options)
+	opts[:file] = ARGV[0]
+	opts[:json] = (!opts[:pretty_json] and !opts[:dot])
+	opts[:dot] = true if opts[:image]
+
+	result = planner.solve(opts)
+	if !opts[:image]
+		if opts[:output].length > 0
+			File.open(opts[:output], 'w') { |f|
+				f.write(result)
+				f.flush
+			}
+		else
+			puts result
+		end
 	else
-		puts planner.solve(options)
+		if opts[:output].length <= 0
+			parts = ARGV[0].split('/')
+			src_file = parts[parts.length-1]
+			parts = src_file.split('.')
+			opts[:output] = src_file[0, src_file.length-1-parts[parts.length-1].length] if parts.length >= 2
+			opts[:output] += '.png'
+		end
+		if !Sfp::Graph.dot2image(result, opts[:output])
+			$stderr.puts "Cannot generate the image graph!"
+		end
 	end
+
 else
 	Trollop::help
 end

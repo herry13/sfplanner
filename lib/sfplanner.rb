@@ -7,4 +7,5 @@ require 'sfp'
 libdir = File.expand_path(File.dirname(__FILE__))
 
 require libdir + '/sfplanner/sas'
+require libdir + '/sfplanner/graph.rb'
 require libdir + '/sfplanner/planner'

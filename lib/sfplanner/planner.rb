@@ -26,20 +26,26 @@ module Sfp
 		attr_accessor :debug
 		attr_reader :parser
 
+		# @param all parameters are passed to Sfp::Parser#initialize method
+		#
 		def initialize(params={})
 			@parser = Sfp::Parser.new(params)
 			@debug = Debug
 		end
 
-		# @param :string       : SFP task in string
-		# @param :sfp          : SFP task in Hash data structure
-		# @param :file         : SFP task in file with specified path
-		# @param :sas_plan     : if true then return a raw SAS plan
-		# @param :parallel     : if true then return a parallel (partial-order) plan,
+		# @param :string      => SFP task in string
+		#        :sfp         => SFP task in Hash data structure
+		#        :file        => SFP task in file with specified path
+		#        :json_input  => SFP task in JSON format
+		#        :sas_plan    => if true then return a raw SAS plan
+		#        :parallel    => if true then return a parallel (partial-order) plan,
 		#                        if false or nil then return a sequential plan
-		# @param :json         : if true then return the plan in JSON
-		# @param :pretty_json  : if true then return in pretty JSON
-		# @param :bsig         : if true then return the solution plan as a BSig model
+		#        :json        => if true then return the plan in JSON
+		#        :pretty_json => if true then return in pretty JSON
+		#        :bsig        => if true then return the solution plan as a BSig model
+		#
+		# @return if solution plan is found then returns a JSON or Hash
+		#         otherwise return nil
 		#
 		def solve(params={})
 			if params[:string].is_a?(String)
@@ -48,7 +54,7 @@ module Sfp
 				@parser.root = params[:sfp]
 			elsif params[:file].is_a?(String)
 				raise Exception, "File not found: #{params[:file]}" if not File.exist?(params[:file])
-				if params[:input_json]
+				if params[:json_input]
 					@parser.root = json_to_sfp(JSON[File.read(params[:file])])
 				else
 					@parser.home_dir = File.expand_path(File.dirname(params[:file]))
@@ -67,10 +73,15 @@ module Sfp
 			end
 		end
 
-		# @param :parallel : if true then return a parallel (partial-order) plan,
-		#                    if false or nil then return a sequential plan
-		# @param :json     : if true then return the plan in JSON
-		# @param :pretty_json : if true then return in pretty JSON
+		# Return Behavioural Signature (BSig) model of previously generated plan.
+		# 
+		# @param :parallel    => if true then return a parallel (partial-order) plan,
+		#                        if false or nil then return a sequential plan
+		#        :json        => if true then return the plan in JSON
+		#        :pretty_json => if true then return in pretty JSON
+		#
+		# @return if solution BSig model is found then returns a JSON or Hash,
+		#         otherwise return nil
 		#
 		def to_bsig(params={})
 			raise Exception, "Conformant task is not supported yet" if @parser.conformant
@@ -81,8 +92,12 @@ module Sfp
 			        (params[:pretty_json] ? JSON.pretty_generate(bsig) : bsig))
 		end
 
-		# @param :json         : if true then return in JSON
-		# @param :pretty_json  : if true then return in pretty JSON
+		# Return the final state if the plan is executed.
+		# 
+		# @param :json        => if true then return in JSON
+		#        :pretty_json => if true then return in pretty JSON
+		#
+		# @return [Hash]
 		#
 		def final_state(params={})
 			return nil if @plan.nil?
@@ -92,6 +107,14 @@ module Sfp
 		end
 
 		protected
+		def to_dot(plan)
+			if plan['type'] == 'parallel'
+				Sfp::Graph.partial2dot(self.get_parallel_plan)
+			else
+				Sfp::Graph.sequential2dot(self.get_sequential_plan)
+			end
+		end
+
 		def json_to_sfp(json)
 			json.accept(Sfp::Visitor::SfpGenerator.new(json))
 			json.each do |key,val|
@@ -177,8 +200,16 @@ module Sfp
 			return to_bsig(params) if params[:bsig]
 
 			plan = (params[:parallel] ? self.get_parallel_plan : self.get_sequential_plan)
-			return (params[:json] ? JSON.generate(plan) :
-			        (params[:pretty_json] ? JSON.pretty_generate(plan) : plan))
+
+			if params[:dot]
+				to_dot(plan)
+			elsif params[:json]
+				JSON.generate(plan)
+			elsif params[:pretty_json]
+				JSON.pretty_generate(plan)
+			else
+				plan
+			end
 		end
 
 		def bsig_template
