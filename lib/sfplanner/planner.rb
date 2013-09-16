@@ -494,7 +494,7 @@ module Sfp
 				@dir = dir
 				@sas_file = sas_file
 				@plan_file = plan_file
-				@heuristics_order = ['autotune12', 'autotune22', 'ff2', 'cea2']
+				@heuristics_order = ['ff2', 'cea2', 'autotune12', 'autotune22']
 				@heuristics_order = ENV['SFPLANNER_MIXED_HEURISTICS'].split(',') if ENV['SFPLANNER_MIXED_HEURISTICS']
 				@continue = continue
 				@continue = true if ENV['SFPLANNER_MIXED_CONTINUE']
