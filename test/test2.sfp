@@ -1,0 +1,20 @@
+schema S {
+	foo is true
+	procedure change {
+		conditions {
+		}
+		effects {
+			this.foo is false
+		}
+	}
+}
+
+initial state {
+	a isa S
+	b isa S
+}
+
+goal constraint {
+	a.foo is false
+	b.foo is false
+}

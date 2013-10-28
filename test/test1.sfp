@@ -1,0 +1,13 @@
+#!/usr/bin/env sfp
+
+include "test1.inc"
+
+initial state {
+	a isa S
+	b isa S
+}
+
+goal constraint {
+	a.foo is false
+	b.foo is false
+}

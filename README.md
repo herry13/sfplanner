@@ -1,9 +1,9 @@
 SFPlanner
 =========
 - Author: Herry (herry13@gmail.com)
-- [Version](https://github.com/herry13/sfplanner/blob/master/VERSION)
 - License: [BSD](https://github.com/herry13/sfp-ruby/blob/master/LICENSE)
 
+[![Build Status Images](https://travis-ci.org/herry13/sfplanner.png)](https://travis-ci.org/herry13/sfplanner.png)
 [![Gem Version](https://badge.fury.io/rb/sfplanner.png)](http://badge.fury.io/rb/sfplanner)
 
 A Ruby script and library of SFP planner, which solves a planning task written in [SFP language](https://github.com/herry13/nuri/wiki/SFP-language).

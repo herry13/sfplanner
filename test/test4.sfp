@@ -1,0 +1,22 @@
+include "test4.inc"
+
+initial state {
+	a isa Service {
+		running is true
+	}
+
+	b isa Service // with "running" is false
+
+	pc isa Client {
+		refer is a
+	}
+}
+
+goal constraint {
+	pc.refer is b
+	a.running is false
+}
+
+global constraint {
+	pc.refer.running is true
+}

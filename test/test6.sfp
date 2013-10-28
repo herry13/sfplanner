@@ -1,0 +1,12 @@
+include "test6.inc"
+
+initial state {
+	s1 isa Service
+	s2 isa Service
+	pc isa Client {
+		refer is s1
+	}
+}
+goal constraint {
+	pc.refer is s2
+}
