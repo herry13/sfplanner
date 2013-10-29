@@ -10,8 +10,6 @@ A Ruby script and library of SFP planner, which solves a planning task written i
 
 Click [here](https://github.com/herry13/nuri/wiki/SFP-language), for more details about SFP language.
 
-This is a spin-out project from [Nuri](https://github.com/herry13/nuri).
-
 
 Features
 --------
@@ -28,10 +26,10 @@ To install
 
 Requirements
 ------------
-- Ruby (>= 1.8.7)
+- Ruby (>= 1.9.2)
 - Graphviz
 - Rubygems
-	- sfp (>= 0.3.0)
+	- sfp
 
 Tested on:
 - Ubuntu 12.04
@@ -221,4 +219,10 @@ You could set particular environment variable to change the planner settings:
 
 	$ export SFPLANNER_MIXED_HEURISTICS=ff2,cea2
 
+
+Related Projects
+----------------
+- [Nuri](https://github.com/herry13/nuri)
+- [SFP-ruby](https://github.com/herry13/sfp-ruby)
+- [sfpagent](https://github.com/herry13/sfpagent)
 
