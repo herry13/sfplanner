@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
 	s.name          = 'sfplanner'
-	s.version       = File.read(File.join(File.dirname(__FILE__), 'VERSION')).sub(/\n/, '')
-	s.date          = '2013-08-13'
+	s.version       = File.read(File.dirname(__FILE__) + '/VERSION').strip
+	s.date          = File.atime(File.dirname(__FILE__) + '/VERSION').strftime("%Y-%m-%d").to_s
 	s.summary       = 'SFPlanner'
 	s.description   = 'A Ruby gem that provides a Ruby API and a script to the SFP planner. This planner can automatically generate a plan that solves a planning problem written in SFP language.'
 	s.authors       = ['Herry']
