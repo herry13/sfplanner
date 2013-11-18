@@ -223,6 +223,6 @@ You could set particular environment variable to change the planner settings:
 Related Projects
 ----------------
 - [Nuri](https://github.com/herry13/nuri)
-- [SFP-ruby](https://github.com/herry13/sfp-ruby)
-- [sfpagent](https://github.com/herry13/sfpagent)
+- [Sfp-ruby](https://github.com/herry13/sfp-ruby)
+- [Sfpagent](https://github.com/herry13/sfpagent)
 
