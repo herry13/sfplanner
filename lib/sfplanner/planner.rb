@@ -546,87 +546,6 @@ module Sfp
 			end
 		end
 
-		class ParallelHeuristic
-			def initialize(dir, sas_file, plan_file, optimize=true)
-				@dir = dir
-				@sas_file = sas_file
-				@plan_file = plan_file
-				if ENV['SFPLANNER_HEURISTICS']
-					@heuristics = ENV['SFPLANNER_HEURISTICS'].split(',')
-				else
-					@heuristics = ['ff2', 'cea2', 'autotune12', 'autotune22']
-				end
-				if ENV['SFPLANNER_OPTIMIZE']
-					@optimize = case ENV['SFPLANNER_OPTIMIZE']
-					when '1', 'true'
-						true
-					else
-						false
-					end
-				else
-					@optimize = optimize
-				end
-				@timeout = (ENV['SFPLANNER_TIMEOUT'] ? ENV['SFPLANNER_TIMEOUT'].to_i : Sfp::Planner::Config.timeout)
-			end
-
-			def solve
-				### run preprocessing
-				return false if not do_preprocess
-
-				### run a thread for each heuristic
-				files = []
-				threads = ThreadGroup.new
-				@heuristics.each do |heuristic|
-					t = Thread.new {
-						plan_file = @plan_file + '.' + heuristic
-						cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout)
-						system(cmd)
-						files << plan_file
-					}
-					threads.add(t)
-				end
-
-				### stop search if any heuristic finds a solution plan, wait until all threads finish
-				loop do
-					finished = true
-					threads.list.each { |t| finished = false if t.alive? }
-					break if finished
-
-					finished = false
-					files.each { |f| finished = true if File.exist?(f) }
-					break if finished
-
-					sleep 0.25
-				end
-
-				### kill any still active thread
-				threads.list.each { |t| Thread.kill(t) if t.alive? }
-
-				### select best plan
-				selected = nil
-				length = -1
-				files.each do |file|
-					if File.exist?(file)
-						len = File.read(file).split("\n").length
-						if length < 0 or len < length
-							length = len
-							selected = file
-						end
-					end
-				end
-				if not selected.nil?
-					File.open(@plan_file, 'w') { |f| f.write(File.read(selected)) }
-					true
-				else
-					false
-				end
-			end
-
-			def do_preprocess
-				!!system(Sfp::Planner.get_preprocess_command(@dir, @sas_file))
-			end
-		end
-
 		# Combination between two heuristic to obtain a suboptimal plan.
 		# 1) solve the problem with CG/CEA/FF, that will produce (usually) a non-optimal plan
 		# 2) remove actions which are not selected by previous step
@@ -776,6 +695,90 @@ module Sfp
 				File.open(new_sas, 'w') { |f| f.write(output) }
 			end
 		end
+
+
+		class ParallelHeuristic < MixedHeuristic
+			def initialize(dir, sas_file, plan_file, optimize=false)
+				@dir = dir
+				@sas_file = sas_file
+				@plan_file = plan_file
+				if ENV['SFPLANNER_HEURISTICS']
+					@heuristics = ENV['SFPLANNER_HEURISTICS'].split(',')
+				else
+					@heuristics = ['ff2', 'cea2', 'autotune12', 'autotune22']
+				end
+				if ENV['SFPLANNER_OPTIMIZE']
+					@optimize = case ENV['SFPLANNER_OPTIMIZE']
+					when '1', 'true'
+						true
+					else
+						false
+					end
+				else
+					@optimize = optimize
+				end
+				@timeout = (ENV['SFPLANNER_TIMEOUT'] ? ENV['SFPLANNER_TIMEOUT'].to_i : Sfp::Planner::Config.timeout)
+			end
+
+			def solve
+				### run preprocessing
+				return false if not do_preprocess
+
+				### run a thread for each heuristic
+				files = []
+				threads = ThreadGroup.new
+				@heuristics.each do |heuristic|
+					t = Thread.new {
+						plan_file = @plan_file + '.' + heuristic
+						cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout)
+						system(cmd)
+						files << plan_file
+					}
+					threads.add(t)
+				end
+
+				### stop search if any heuristic finds a solution plan, wait until all threads finish
+				loop do
+					finished = true
+					threads.list.each { |t| finished = false if t.alive? }
+					break if finished
+
+					finished = false
+					files.each { |f| finished = true if File.exist?(f) }
+					break if finished
+
+					sleep 0.25
+				end
+
+				### kill any still active thread
+				threads.list.each { |t| Thread.kill(t) if t.alive? }
+
+				### select best plan
+				selected = nil
+				length = -1
+				files.each do |file|
+					if File.exist?(file)
+						len = File.read(file).split("\n").length
+						if length < 0 or len < length
+							length = len
+							selected = file
+						end
+					end
+				end
+				if not selected.nil?
+					File.open(@plan_file, 'w') { |f| f.write(File.read(selected)) }
+					optimize_plan if @optimize
+					true
+				else
+					false
+				end
+			end
+
+			def do_preprocess
+				!!system(Sfp::Planner.get_preprocess_command(@dir, @sas_file))
+			end
+		end
+
 
 		class Action
 			attr_accessor :operator, :predecessor
