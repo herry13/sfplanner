@@ -347,7 +347,7 @@ module Sfp
 		def solve_sas(parser, p={})
 			return nil if parser.nil?
 			
-			tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
+			tmp_dir = '/tmp/nuri_' + (Time.now.to_f * 1000000).to_i.to_s
 			begin
 				compile_time = Benchmark.measure do
 					parser.compile_step_1
@@ -362,23 +362,21 @@ module Sfp
 
 				benchmarks = parser.benchmarks
 				benchmarks['compile time'] = compile_time
-				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
 
 				sas_file = tmp_dir + '/problem.sas'
 				plan_file = tmp_dir + '/out.plan'
-				File.open(sas_file, 'w') do |f|
-					f.write(parser.sas)
-					f.flush
+				benchmarks['generating sas'] = Benchmark.measure do
+					File.open(sas_file, 'w') do |f|
+						f.write(parser.sas)
+						f.flush
+					end
 				end
 
-				if Heuristic == 'mixed'
-					#mixed = MixedHeuristic.new(tmp_dir, sas_file, plan_file)
-					#mixed.solve
-					ParallelHeuristic.new(tmp_dir, sas_file, plan_file).solve
-				else
-					command = Sfp::Planner.getcommand(tmp_dir, sas_file, plan_file, Heuristic)
-					Kernel.system(command)
-				end
+				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
+
+				planner = ParallelHeuristic.new(tmp_dir, sas_file, plan_file)
+				planner.solve
+
 				plan = (File.exist?(plan_file) ? File.read(plan_file) : nil)
 				plan = plan_preprocessing(plan)
 
@@ -520,18 +518,15 @@ module Sfp
 			params = Sfp::Planner.parameters(heuristic)
 			timeout = Sfp::Planner::Config.timeout if timeout.nil?
 			max_memory = Sfp::Planner::Config.max_memory
+			logfile = "search.log." + heuristic
 
 			case `uname -s`.downcase.strip
 			when 'linux'
-				"cd #{dir} && ulimit -Sv #{max_memory} && \
-				 if [ -f 'output' ]; then \
-				 timeout #{timeout} nice #{planner}/downward #{params} \
-				 --plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
+				"ulimit -Sv #{max_memory} && timeout #{timeout} nice #{planner}/downward #{params} \
+				 --plan-file #{plan_file} < output 1>>#{logfile} 2>>#{logfile}"
 			when 'macos', 'darwin'
-				"cd #{dir} && ulimit -Sv #{max_memory} && \
-				 if [ -f 'output' ]; then \
-				 nice #{planner}/downward #{params} \
-				 --plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
+				"ulimit -Sv #{max_memory} && nice #{planner}/downward #{params} \
+				 --plan-file #{plan_file} < output 1>>#{logfile} 2>>#{logfile}"
 			else
 				'exit 1'
 			end
@@ -724,34 +719,35 @@ module Sfp
 				### run preprocessing
 				return false if not do_preprocess
 
+				### save current working dir
+				home = Dir.pwd
+
+				### change to temporary working dir
+				Dir.chdir @dir
+
 				### run a thread for each heuristic
 				files = []
-				threads = ThreadGroup.new
 				@heuristics.each do |heuristic|
-					t = Thread.new {
-						plan_file = @plan_file + '.' + heuristic
-						cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout)
-						system(cmd)
-						files << plan_file
-					}
-					threads.add(t)
+					plan_file = @plan_file + '.' + heuristic
+					cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout)
+					pid = Process.spawn cmd
+					Process.detach pid
+					files << plan_file
 				end
 
-				### stop search if any heuristic finds a solution plan, wait until all threads finish
+				def processes(dir)
+					`ps ax | grep -v grep | grep downward | grep sfplanner | grep '#{dir}' | awk '{print $1" "}'`.to_s.strip.split("\n")
+				end
+
 				loop do
-					finished = true
-					threads.list.each { |t| finished = false if t.alive? }
-					break if finished
-
-					finished = false
-					files.each { |f| finished = true if File.exist?(f) }
-					break if finished
-
-					sleep 0.25
+					list = processes(@dir)
+					break if list.length <= 0
+					finished = files.select { |f| File.exist?(f) }
+					break if finished.length > 0
+					sleep 0.2
 				end
 
-				### kill any still active thread
-				threads.list.each { |t| Thread.kill(t) if t.alive? }
+				system "kill -9 " + processes(@dir).join(" ") + " 1>/dev/null 2>/dev/null"
 
 				### select best plan
 				selected = nil
@@ -765,17 +761,22 @@ module Sfp
 						end
 					end
 				end
+
 				if not selected.nil?
-					File.open(@plan_file, 'w') { |f| f.write(File.read(selected)) }
+					FileUtils.copy(selected, @plan_file)
 					optimize_plan if @optimize
+
+					Dir.chdir home
 					true
 				else
+					Dir.chdir home
 					false
 				end
 			end
 
 			def do_preprocess
-				!!system(Sfp::Planner.get_preprocess_command(@dir, @sas_file))
+				(!!system(Sfp::Planner.get_preprocess_command(@dir, @sas_file)) &&
+				 File.exist?(@dir + '/output'))
 			end
 		end
 
