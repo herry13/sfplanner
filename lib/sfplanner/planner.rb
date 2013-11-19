@@ -442,7 +442,7 @@ module Sfp
                     single(sum([g(),weight(hFF, 10)]),pref_only=true)],
                     boost=2000),
                preferred=hFF,reopen_closed=false,cost_type=1)"'
-				when 'autotune22' then ' \
+				when 'fd-autotune-2' then ' \
 --heuristic "hCea=cea(cost_type=2)" \
 --heuristic "hCg=cg(cost_type=1)" \
 --heuristic "hGoalCount=goalcount(cost_type=2)" \
@@ -457,7 +457,7 @@ module Sfp
                     single(sum([weight(g(), 2),weight(hGoalCount, 3)]),pref_only=true)],
                    boost=200),
               preferred=[hCea,hGoalCount],reopen_closed=false,cost_type=1)"'
-				when 'autotune12' then ' \
+				when 'fd-autotune-1' then ' \
             --heuristic "hFF=ff(cost_type=1)" \
             --heuristic "hCea=cea(cost_type=0)" \
             --heuristic "hCg=cg(cost_type=2)" \
@@ -552,7 +552,7 @@ module Sfp
 				@dir = dir
 				@sas_file = sas_file
 				@plan_file = plan_file
-				@heuristics_order = ['ff2', 'cea2', 'autotune12', 'autotune22']
+				@heuristics_order = ['ff2', 'cea2', 'fd-autotune1', 'fd-autotune2']
 				@heuristics_order = ENV['SFPLANNER_MIXED_HEURISTICS'].split(',') if ENV['SFPLANNER_MIXED_HEURISTICS']
 				@continue = continue
 				@continue = true if ENV['SFPLANNER_MIXED_CONTINUE']
@@ -561,13 +561,13 @@ module Sfp
 
 			def solve2
 				if not File.exist?(@plan_file)
- 					#autotune12 (see fd-autotune-1)
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune12')
+ 					#fd-autotune-1
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'fd-autotune-1')
 					Kernel.system(planner)
 				end
 				if not File.exist?(@plan_file)
- 					#autotune22 (see fd-autotune-2)
-					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'autotune22')
+ 					#fd-autotune-2
+					planner = Sfp::Planner.getcommand(@dir, @sas_file, @plan_file, 'fd-autotune-2')
 					Kernel.system(planner)
 				end
 				if not File.exists?(@plan_file)
@@ -700,7 +700,7 @@ module Sfp
 				if ENV['SFPLANNER_HEURISTICS']
 					@heuristics = ENV['SFPLANNER_HEURISTICS'].split(',')
 				else
-					@heuristics = ['ff2', 'cea2', 'autotune12', 'autotune22']
+					@heuristics = ['ff2', 'cea2', 'fd-autotune-1', 'fd-autotune-2']
 				end
 				if ENV['SFPLANNER_OPTIMIZE']
 					@optimize = case ENV['SFPLANNER_OPTIMIZE']
