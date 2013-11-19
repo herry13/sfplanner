@@ -8,7 +8,6 @@ Gem::Specification.new do |s|
 	s.email	        = 'herry13@gmail.com'
 
 	s.executables   << 'sfplanner'
-	s.executables   << 'sfw2graph'
 	s.files         = `git ls-files`.split("\n")
 
 	s.require_paths = ['lib']
