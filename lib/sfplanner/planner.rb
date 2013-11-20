@@ -372,10 +372,10 @@ module Sfp
 					end
 				end
 
-				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
-
-				planner = ParallelHeuristic.new(tmp_dir, sas_file, plan_file)
-				planner.solve
+				benchmarks['search_time'] = Benchmark.measure do
+					planner = ParallelHeuristic.new(tmp_dir, sas_file, plan_file)
+					planner.solve
+				end
 
 				plan = (File.exist?(plan_file) ? File.read(plan_file) : nil)
 				plan = plan_preprocessing(plan)
@@ -396,6 +396,8 @@ module Sfp
 					sas_task.goal_operator_name = goal_op
 					plan = tmp
 				end
+
+				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
 
 				return plan, sas_task
 			rescue Exception => exp
