@@ -347,27 +347,34 @@ module Sfp
 		def solve_sas(parser, p={})
 			return nil if parser.nil?
 			
-			tmp_dir = '/tmp/nuri_' + (Time.now.to_f * 1000000).to_i.to_s
+			tmp_dir = "/tmp/nuri_#{(Time.now.to_f * 1000000).to_i}"
 			begin
-				compile_time = Benchmark.measure do
+				benchmarks = {}
+
+				benchmarks['compile step 1'] = Benchmark.measure do
 					parser.compile_step_1
+				end
+
+				benchmarks['sas_post_processor'] = Benchmark.measure do
 					p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
+				end
+
+				benchmarks['compile step 2'] = Benchmark.measure do
 					parser.compile_step_2
 				end
 
 				while File.exist?(tmp_dir)
-					tmp_dir = '/tmp/nuri_' + (rand * 100000).to_i.abs.to_s
+					tmp_dir = "/tmp/nuri_#{(rand * 100000).to_i.abs}"
 				end
 				Dir.mkdir(tmp_dir)
 
-				benchmarks = parser.benchmarks
-				benchmarks['compile time'] = compile_time
+				benchmarks.merge!(parser.benchmarks)
 
-				sas_file = tmp_dir + '/problem.sas'
-				plan_file = tmp_dir + '/out.plan'
+				sas_file = "#{tmp_dir}/problem.sas"
+				plan_file = "#{tmp_dir}/out.plan"
 				benchmarks['generating sas'] = Benchmark.measure do
 					File.open(sas_file, 'w') do |f|
-						f.write(parser.sas)
+						parser.dump(f)
 						f.flush
 					end
 				end
@@ -397,7 +404,7 @@ module Sfp
 					plan = tmp
 				end
 
-				File.open(tmp_dir + '/' + TranslatorBenchmarkFile, 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
+				File.open("#{tmp_dir}/#{TranslatorBenchmarkFile}", 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
 
 				return plan, sas_task
 			rescue Exception => exp
@@ -416,12 +423,11 @@ module Sfp
 			planner = nil
 
 			if os == 'linux' and machine[0,3] == 'x86'
-				planner = File.expand_path(File.dirname(__FILE__) + '/../../bin/solver/linux-x86')
+				planner = File.expand_path("#{File.dirname(__FILE__)}/../../bin/solver/linux-x86")
 			elsif os == 'linux' and machine[0,3] == 'arm'
-				planner = File.expand_path(File.dirname(__FILE__) + '/../../bin/solver/linux-arm')
-				#Sfp::Planner::Config.set_max_memory(512)
+				planner = File.expand_path("#{File.dirname(__FILE__)}/../../bin/solver/linux-arm")
 			elsif os == 'macos' or os == 'darwin'
-				planner = File.expand_path(File.dirname(__FILE__) + '/../../bin/solver/macos')
+				planner = File.expand_path("#{File.dirname(__FILE__)}/../../bin/solver/macos")
 			end
 
 			raise UnsupportedPlatformException, "#{os} is not supported" if planner.nil?
@@ -489,30 +495,23 @@ module Sfp
 			params = Sfp::Planner.parameters(heuristic)
 			timeout = Sfp::Planner::Config.timeout if timeout.nil?
 
-			os = `uname -s`.downcase.strip
-			command = case os
+			case `uname -s `.downcase.strip
 				when 'linux'
-					then "cd #{dir}; " +
-					     "ulimit -Sv #{Sfp::Planner::Config.max_memory}; " +
-					     "#{planner}/preprocess < #{sas_file} 2>/dev/null 1>/dev/null; " +
-					     "if [ -f 'output' ]; then " +
-					     "timeout #{timeout} nice #{planner}/downward #{params} " +
-					     "--plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
+					then "cd #{dir} && \
+					      ulimit -Sv #{Sfp::Planner::Config.max_memory} && \
+					      #{planner}/preprocess < #{sas_file} 2>/dev/null 1>/dev/null && \
+					      if [ -f 'output' ]; then \
+					      timeout #{timeout} nice #{planner}/downward #{params} \
+					      --plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
 				when 'macos', 'darwin'
-					then "cd #{dir}; " +
-					     "ulimit -Sv #{Sfp::Planner::Config.max_memory}; " +
-					     "#{planner}/preprocess < #{sas_file} 1>/dev/null 2>/dev/null ; " +
-					     "if [ -f 'output' ]; then " +
-						 "nice #{planner}/downward #{params} " +
-					     "--plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
+					then "cd #{dir} && \
+					      ulimit -Sv #{Sfp::Planner::Config.max_memory} && \
+					      #{planner}/preprocess < #{sas_file} 1>/dev/null 2>/dev/null && \
+					      if [ -f 'output' ]; then \
+						   nice #{planner}/downward #{params} \
+					      --plan-file #{plan_file} < output 1>>search.log 2>>search.log; fi"
 				else nil
 			end
-
-			#if not command.nil? and (os == 'linux' or os == 'macos' or os == 'darwin')
-			#	command = "#{command}" #1> /dev/null 2>/dev/null"
-			#end
-
-			command
 		end
 
 		def self.get_search_command(dir, plan_file, heuristic, timeout=nil)
@@ -717,9 +716,22 @@ module Sfp
 				@timeout = (ENV['SFPLANNER_TIMEOUT'] ? ENV['SFPLANNER_TIMEOUT'].to_i : Sfp::Planner::Config.timeout)
 			end
 
+			def pids(dir='')
+				`ps ax | grep -v grep | grep downward | grep sfplanner | grep '#{dir}' | awk '{print $1" "}'`.to_s.strip.split("\n")
+			end
+
 			def solve
+				def kill(dir='')
+					system "kill -9 #{pids(dir).join(' ')} 1>/dev/null 2>/dev/null"
+				end
+
 				### run preprocessing
 				return false if not do_preprocess
+
+				['HUP', 'KILL', 'INT'].each { |name,id|
+					dir = @dir
+					Signal.trap(name) { kill(dir) }
+				}
 
 				### save current working dir
 				home = Dir.pwd
@@ -737,19 +749,15 @@ module Sfp
 					files << plan_file
 				end
 
-				def processes(dir)
-					`ps ax | grep -v grep | grep downward | grep sfplanner | grep '#{dir}' | awk '{print $1" "}'`.to_s.strip.split("\n")
-				end
-
 				loop do
-					list = processes(@dir)
+					list = pids(@dir)
 					break if list.length <= 0
 					finished = files.select { |f| File.exist?(f) }
 					break if finished.length > 0
 					sleep 0.2
 				end
 
-				system "kill -9 " + processes(@dir).join(" ") + " 1>/dev/null 2>/dev/null"
+				kill(@dir)
 
 				### select best plan
 				selected = nil
@@ -774,6 +782,9 @@ module Sfp
 					Dir.chdir home
 					false
 				end
+
+			ensure
+				kill(@dir)
 			end
 
 			def do_preprocess
