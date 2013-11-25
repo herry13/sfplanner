@@ -1,4 +1,4 @@
-module Nuri
+module Sfp
 	module Sas
 		class Task
 			attr_reader :variables, :mutexes, :operators, :axioms, :init, :goal

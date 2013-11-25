@@ -194,23 +194,35 @@ module Sfp
 		end
 
 		def solve_classical_task(params={})
-			@plan, @sas_task = self.solve_sas(@parser, params)
+			benchmarks = {}
+			benchmarks[:solve_sas] = Benchmark.realtime {
+				@plan, @sas_task = self.solve_sas(@parser, params)
+			}
 
 			return @plan if params[:sas_plan]
 
 			return to_bsig(params) if params[:bsig]
 
-			plan = (params[:parallel] ? self.get_parallel_plan : self.get_sequential_plan)
+			plan = nil
+			benchmarks[:get_parallel_plan] = Benchmark.realtime {
+				plan = (params[:parallel] ? self.get_parallel_plan : self.get_sequential_plan)
+			}
 
-			if params[:dot]
-				to_dot(plan)
-			elsif params[:json]
-				JSON.generate(plan)
-			elsif params[:pretty_json]
-				JSON.pretty_generate(plan)
-			else
-				plan
-			end
+			output = nil
+
+			benchmarks[:to_json] = Benchmark.realtime {
+				if params[:dot]
+					output = to_dot(plan)
+				elsif params[:json]
+					output = JSON.generate(plan)
+				elsif params[:pretty_json]
+					output = JSON.pretty_generate(plan)
+				else
+					output = plan
+				end
+			}
+
+			output
 		end
 
 		def bsig_template
@@ -351,15 +363,15 @@ module Sfp
 			begin
 				benchmarks = {}
 
-				benchmarks['compile step 1'] = Benchmark.measure do
+				benchmarks['compile step 1'] = Benchmark.realtime do
 					parser.compile_step_1
 				end
 
-				benchmarks['sas_post_processor'] = Benchmark.measure do
+				benchmarks['sas_post_processor'] = Benchmark.realtime do
 					p[:sas_post_processor].sas_post_processor(parser) if p[:sas_post_processor]
 				end
 
-				benchmarks['compile step 2'] = Benchmark.measure do
+				benchmarks['compile step 2'] = Benchmark.realtime do
 					parser.compile_step_2
 				end
 
@@ -372,24 +384,26 @@ module Sfp
 
 				sas_file = "#{tmp_dir}/problem.sas"
 				plan_file = "#{tmp_dir}/out.plan"
-				benchmarks['generating sas'] = Benchmark.measure do
+				benchmarks['generating sas'] = Benchmark.realtime do
 					File.open(sas_file, 'w') do |f|
-						parser.dump(f)
+						f.write parser.sas
 						f.flush
 					end
 				end
 
-				benchmarks['search_time'] = Benchmark.measure do
+				benchmarks['search_time'] = Benchmark.realtime do
 					planner = ParallelHeuristic.new(tmp_dir, sas_file, plan_file)
 					planner.solve
 				end
 
-				plan = (File.exist?(plan_file) ? File.read(plan_file) : nil)
-				plan = plan_preprocessing(plan)
+				File.open("#{tmp_dir}/#{TranslatorBenchmarkFile}", 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
 
-				if plan != nil
+				plan = (File.exist?(plan_file) ? File.read(plan_file) : nil)
+				#plan = plan_preprocessing(plan)
+
+				if not plan.nil?
 					plan = extract_sas_plan(plan, parser)
-					sas_task = Nuri::Sas::Task.new(sas_file)
+					sas_task = Sfp::Sas::Task.new(sas_file)
 					sas_task.sas_plan = plan
 
 					tmp = []
@@ -402,11 +416,10 @@ module Sfp
 					end
 					sas_task.goal_operator_name = goal_op
 					plan = tmp
+
+					return plan, sas_task
 				end
 
-				File.open("#{tmp_dir}/#{TranslatorBenchmarkFile}", 'w') { |f| f.write(JSON.pretty_generate(benchmarks)) }
-
-				return plan, sas_task
 			rescue Exception => exp
 				raise exp
 			ensure
