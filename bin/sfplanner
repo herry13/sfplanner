@@ -37,7 +37,9 @@ if ARGV[0]
 	opts[:dot] = true if opts[:image]
 
 	result = planner.solve(opts)
-	if !opts[:image]
+	if result['workflow'].nil?
+		puts "no solution!"
+	elsif !opts[:image]
 		if opts[:output].length > 0
 			File.open(opts[:output], 'w') { |f|
 				f.write(result)
