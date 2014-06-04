@@ -495,6 +495,12 @@ module Sfp
                           boost=1000),
                      preferred=[hCea,hGoalCount],
                      reopen_closed=false,cost_type=1)"'
+				when 'lama' then ' \
+	--heuristic "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=0), admissible=false, optimal=false, cost_type=0)" \
+	--search "lazy_greedy([hlm,hff],preferred=[hlm,hff])"'
+				when 'lmrhw' then ' \
+  --heuristic "hlm=lm_rhw(cost_type=0, reasonable_orders=false, only_causal_landmarks=false, disjunctive_landmarks=true, conjunctive_landmarks=true, no_orders=false, lm_cost_type=0)" \
+  --search "lazy_greedy([hlm],preferred=[hlm])"'
 				else '--search "lazy_greedy(ff(cost_type=0))"'
 			end
 		end
@@ -714,7 +720,7 @@ module Sfp
 				if ENV['SFPLANNER_HEURISTICS']
 					@heuristics = ENV['SFPLANNER_HEURISTICS'].split(',')
 				else
-					@heuristics = ['ff2', 'cea2', 'fd-autotune-1', 'fd-autotune-2']
+					@heuristics = ['lama'] # ['ff2', 'cea2', 'fd-autotune-1', 'fd-autotune-2']
 				end
 				if ENV['SFPLANNER_OPTIMIZE']
 					@optimize = case ENV['SFPLANNER_OPTIMIZE']
