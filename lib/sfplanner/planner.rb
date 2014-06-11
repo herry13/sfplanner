@@ -543,16 +543,27 @@ module Sfp
 			timeout = Sfp::Planner::Config.timeout if timeout.nil?
 			max_memory = Sfp::Planner::Config.max_memory
 			logfile = (single ? "search.log" : "search.log." + heuristic)
+			platform = `uname -s`.downcase.strip
 
-			case `uname -s`.downcase.strip
+			limit = ""
+			if not ENV['SFPLANNER_NO_LIMIT']
+				limit = case platform
+				when 'linux'
+					"ulimit -Sv #{max_memory} && timeout #{timeout}"
+				when 'macos', 'darwin'
+					"ulimit -Sv #{max_memory} &&"
+				end
+			end
+
+			case platform
 			when 'linux'
-				"ulimit -Sv #{max_memory} && timeout #{timeout} nice #{planner}/downward #{params} \
+				"#{limit} timeout #{timeout} nice #{planner}/downward #{params} \
 				 --plan-file #{plan_file} < output 1>>#{logfile} 2>>#{logfile}"
 			when 'macos', 'darwin'
-				"ulimit -Sv #{max_memory} && nice #{planner}/downward #{params} \
+				"#{limit} nice #{planner}/downward #{params} \
 				 --plan-file #{plan_file} < output 1>>#{logfile} 2>>#{logfile}"
 			else
-				'exit 1'
+				raise Exception, "unsupported platform: #{platform}"
 			end
 		end
 
