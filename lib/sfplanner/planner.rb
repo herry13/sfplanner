@@ -424,6 +424,9 @@ module Sfp
 				raise exp
 			ensure
 				File.delete('plan_numbers_and_cost') if File.exist?('plan_numbers_and_cost')
+				if ENV['SFPLANNER_SEARCH_LOG'].to_s.strip.length > 0 and File.exists?("#{tmp_dir}/search.log") then
+					FileUtils.cp "#{tmp_dir}/search.log", ENV['SFPLANNER_SEARCH_LOG']
+				end
 				Kernel.system('rm -rf ' + tmp_dir) if not @debug
 			end
 
@@ -498,9 +501,10 @@ module Sfp
 				when 'lama' then ' \
 	--heuristic "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=0), admissible=false, optimal=false, cost_type=0)" \
 	--search "lazy_greedy([hlm,hff],preferred=[hlm,hff])"'
-				when 'lmrhw' then ' \
-  --heuristic "hlm=lm_rhw(cost_type=0, reasonable_orders=false, only_causal_landmarks=false, disjunctive_landmarks=true, conjunctive_landmarks=true, no_orders=false, lm_cost_type=0)" \
-  --search "lazy_greedy([hlm],preferred=[hlm])"'
+				when 'lm' then ' \
+	--landmarks "lm=lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=0)" \
+	--heuristic "hlm=lmcount(lm)" \
+	--search "lazy(alt([single(sum([g(),weight(hLM, 10)]))],boost=2000),preferred=hLM,reopen_closed=false,cost_type=1)"'
 				else '--search "lazy_greedy(ff(cost_type=0))"'
 			end
 		end
@@ -533,12 +537,12 @@ module Sfp
 			end
 		end
 
-		def self.get_search_command(dir, plan_file, heuristic, timeout=nil)
+		def self.get_search_command(dir, plan_file, heuristic, timeout=nil, single=true)
 			planner = Sfp::Planner.path
 			params = Sfp::Planner.parameters(heuristic)
 			timeout = Sfp::Planner::Config.timeout if timeout.nil?
 			max_memory = Sfp::Planner::Config.max_memory
-			logfile = "search.log." + heuristic
+			logfile = (single ? "search.log" : "search.log." + heuristic)
 
 			case `uname -s`.downcase.strip
 			when 'linux'
@@ -762,7 +766,7 @@ module Sfp
 				files = []
 				@heuristics.each do |heuristic|
 					plan_file = @plan_file + '.' + heuristic
-					cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout)
+					cmd = Sfp::Planner.get_search_command(@dir, plan_file, heuristic, @timeout, (@heuristics.length == 1))
 					pid = Process.spawn cmd
 					Process.detach pid
 					files << plan_file
