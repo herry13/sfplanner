@@ -501,10 +501,14 @@ module Sfp
 				when 'lama' then ' \
 	--heuristic "hlm,hff=lm_ff_syn(lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=0), admissible=false, optimal=false, cost_type=0)" \
 	--search "lazy_greedy([hlm,hff],preferred=[hlm,hff])"'
-				when 'lm' then ' \
-	--landmarks "lm=lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=0)" \
+				when 'lmlazy','lm' then ' \
+	--landmarks "lm=lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=2)" \
 	--heuristic "hlm=lmcount(lm)" \
-	--search "lazy(alt([single(sum([g(),weight(hLM, 10)]))],boost=2000),preferred=hLM,reopen_closed=false,cost_type=1)"'
+	--search "lazy_greedy(sum([g(),weight(hlm,10)]),boost=2000,cost_type=2)"'
+				when 'lmeager' then ' \
+	--landmarks "lm=lm_rhw(reasonable_orders=true,lm_cost_type=2,cost_type=2)" \
+	--heuristic "hlm=lmcount(lm)" \
+	--search "eager_greedy(sum([g(),weight(hlm,10)]),boost=2000,cost_type=2)"'
 				else '--search "lazy_greedy(ff(cost_type=0))"'
 			end
 		end
@@ -557,7 +561,7 @@ module Sfp
 
 			case platform
 			when 'linux'
-				"#{limit} timeout #{timeout} nice #{planner}/downward #{params} \
+				"#{limit} nice #{planner}/downward #{params} \
 				 --plan-file #{plan_file} < output 1>>#{logfile} 2>>#{logfile}"
 			when 'macos', 'darwin'
 				"#{limit} nice #{planner}/downward #{params} \
